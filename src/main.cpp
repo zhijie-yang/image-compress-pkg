@@ -48,6 +48,7 @@ int main(int argc, char **argv)
         ss >> num;
         std::string image_topic = cam_name + num;
         std::string image_compressed = image_topic + "_compressed";
+        /// TODO may change the second param into a number instead of a string
         subscriber_vector[i] = nh.subscribe<sensor_msgs::Image>(image_topic, 1, boost::bind(&imageCallback, _1, image_topic));
         publisher_vector[i] = nh.advertise<sensor_msgs::Image>(image_compressed, 1000);
     }
