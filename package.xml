@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <package format="2">
-  <name>image_transport_pkg</name>
+  <name>image_compress_pkg</name>
   <version>0.0.0</version>
   <description>The multithreaded image compressor</description>
 

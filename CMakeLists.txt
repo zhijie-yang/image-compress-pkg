@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8.3)
-project(image_transport_pkg)
+project(image_compress_pkg)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
 add_compile_options(-std=c++11)
@@ -7,6 +7,8 @@ add_compile_options(-std=c++11)
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
+
+#set(CMAKE_PREFIX_PATH ${CMAKE_PREFIX_PATH} ".")
 
 find_package(catkin REQUIRED COMPONENTS
         pcl_conversions
@@ -120,13 +122,15 @@ catkin_package(
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
 include_directories(
-        # include
+        include
         ${catkin_INCLUDE_DIRS}
+        /usr/include/turbojpeg.h
 )
+
 
 ## Declare a C++ library
 # add_library(${PROJECT_NAME}
-#   src/${PROJECT_NAME}/reflection_detection.cpp
+#   src/${PROJECT_NAME}/include/thread_ppool.hpp
 # )
 
 ## Add cmake target dependencies of the library
@@ -202,4 +206,4 @@ include_directories(
 ## Add folders to be run by python nosetests
 # catkin_add_nosetests(test)
 add_executable(${PROJECT_NAME}_node src/main.cpp)
-target_link_libraries(${PROJECT_NAME}_node ${catkin_LIBRARIES})
+target_link_libraries(${PROJECT_NAME}_node ${catkin_LIBRARIES} /usr/lib/x86_64-linux-gnu/libturbojpeg.so)
