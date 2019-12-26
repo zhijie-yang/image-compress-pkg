@@ -5,22 +5,25 @@
 #include <ros/ros.h>
 #include <sensor_msgs/Image.h>
 #include <sensor_msgs/CompressedImage.h>
-#include <cstdint>
+
 #include <turbojpeg.h>
+
+#include <cstdint>
 #include <thread>
-#include <boost/thread.hpp>
-//#include <boost/thread/thread_pool.hpp>
-#include <boost/asio.hpp>
+#include <mutex>
+#include <condition_variable>
 #include <sstream>
-#include <future>
-#include "ThreadPool.h"
 
 #define NUM_THREADS 32
 
 
+std::mutex mtx;
+std::condition_variable cv;
+
 
 std::vector<ros::Publisher> publisher_vector;
 std::vector<unsigned long> publish_seq;
+std::vector<std::vector<sensor_msgs::ImageConstPtr>> image_buffer;
 std::vector<std::vector<sensor_msgs::CompressedImagePtr>> compressed_buffer;
 
 
