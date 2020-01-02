@@ -1,9 +1,13 @@
 <?xml version="1.0"?>
 <launch>
-  <arg name="num_topics" value=1 />
-  <arg name="num_threads" value=32 />
-  <node pkg="image_compress_pkg" type="image_transport_pkg_node" name="image_transport_pkg">
-    <remap from="/camera_0" to="velodyne_points"/>
+  <arg name="num_topics" value="4" />
+  <arg name="num_threads" value="32" />
+  <node pkg="image_compress_pkg" type="image_compress_pkg_node" name="image_compress_pkg">
+    <remap from="/camera_0" to="/camera_front_l/image_raw/compressed" />
+    <remap from="/camera_1" to="/camera_front_r/image_raw/compressed" />
+    <remap from="/camera_2" to="/camera_up_l/image_raw/compressed" />
+    <remap from="/camera_3" to="/camera_up_r/image_raw/compressed" />
+
   </node>
   <!-- <include file="$(find jackal_viz)/launch/view_robot.launch">
   	<arg name="config" value="gmapping"/>
