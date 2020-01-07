@@ -24,7 +24,7 @@ std::condition_variable cv;
 
 std::vector<ros::Publisher> publisher_vector;
 std::vector<unsigned long> publish_seq;
-std::vector<std::list<sensor_msgs::ImageConstPtr>> image_buffer;
+std::vector<std::list<sensor_msgs::Image>> image_buffer;
 std::vector<std::list<sensor_msgs::CompressedImage>> compressed_buffer;
 std::mutex buf_mtx;
 
@@ -88,19 +88,20 @@ void insert_ordered (std::list<sensor_msgs::CompressedImage>& sub_buffer, const 
 
 int trgb2jpeg(const unsigned char* rgb_buffer, int width, int height, int quality, unsigned char** jpeg_buffer, unsigned long* jpeg_size)
 {
+    printf("%s\n", "111");
     tjhandle handle = nullptr;
     //unsigned long size=0;
     int flags = 0;
     int subsamp = TJSAMP_422;
-    int pixelfmt = TJPF_RGB;
-
+    int pixelfmt = TJPF_BGR;
+    printf("%s\n", "222");
     handle=tjInitCompress();
     //size=tjBufSize(width, height, subsamp);
     tjCompress2(handle, rgb_buffer, width, 0, height, pixelfmt, jpeg_buffer, jpeg_size, subsamp,
                 quality, flags);
 
     tjDestroy(handle);
-
+    printf("%s\n", "333");
     return 0;
 }
 
@@ -109,43 +110,54 @@ int trgb2jpeg(const unsigned char* rgb_buffer, int width, int height, int qualit
 void compressor_thread_func ()
 {
     std::unique_lock<std::mutex> lk(wait_mtx);
-    cv.wait(lk, []()
-                    {
-                        std::unique_lock<std::mutex> guard(buf_mtx);
-                        return buffer_not_empty<sensor_msgs::ImageConstPtr>(image_buffer);
-                    });
-
-    std::unique_lock<std::mutex> ulk(buf_mtx);
-    int camera_num = longest_queue();
-    sensor_msgs::ImageConstPtr msg = image_buffer[camera_num].front();
-    image_buffer[camera_num].pop_front();
-    ulk.unlock();
-    unsigned long jpegSize;
-    unsigned char * jpegBuffer = nullptr;
-    sensor_msgs::CompressedImage img;
-    trgb2jpeg(msg->data.data(), msg->width, msg->height, 1, &jpegBuffer, &jpegSize);
-    img.data.assign(jpegBuffer, jpegBuffer+jpegSize);
-    img.format = "jpeg";
-    img.header.seq = msg->header.seq;
-    img.header.frame_id = msg->header.frame_id;
-    img.header.stamp = msg->header.stamp;
-
-    std::unique_lock<std::mutex> guard(vec_comp_mtx[camera_num]);
-    if (publish_seq[camera_num] == img.header.seq - 1)
+    while(1)
     {
-        /// Publish directly
-        publisher_vector[camera_num].publish(img);
-        publish_seq[camera_num] = img.header.seq;
-    } else
-    {
-        /// Into the buffer
-        insert_ordered(compressed_buffer[camera_num], img);
+        cv.wait(lk, []()
+                        {
+                            std::unique_lock<std::mutex> guard(buf_mtx);
+                            return buffer_not_empty<sensor_msgs::Image>(image_buffer);
+                        });
+        std::unique_lock<std::mutex> ulk(buf_mtx);
+        int camera_num = longest_queue();
+        // printf("size: %d\n", image_buffer[camera_num].size());
+        if (image_buffer[camera_num].size()>0)
+        {
+        sensor_msgs::Image msg = image_buffer[camera_num].front();
+        image_buffer[camera_num].pop_front();
+        ulk.unlock();
+        unsigned long jpegSize;
+        unsigned char * jpegBuffer = nullptr;
+        sensor_msgs::CompressedImage img;
+            printf("%s\n", "1111");
+            printf("width: %d\n", msg.width);
+                    printf("%s\n", "1111-1");
+        trgb2jpeg(msg.data.data(), msg.width, msg.height, 100, &jpegBuffer, &jpegSize);
+            printf("%s\n", "2222");
+            printf("jpegsize: %d\n", jpegSize);
+            printf("jpegbuffer: %d\n", jpegBuffer);
+        img.data.assign(jpegBuffer, jpegBuffer+jpegSize);
+        img.format = "jpeg";
+        img.header.seq = msg.header.seq;
+        img.header.frame_id = msg.header.frame_id;
+        img.header.stamp = msg.header.stamp;
+        std::unique_lock<std::mutex> guard(vec_comp_mtx[camera_num]);
+        if (publish_seq[camera_num] == img.header.seq - 1)
+        {
+            /// Publish directly
+            publisher_vector[camera_num].publish(img);
+            publish_seq[camera_num] = img.header.seq;
+        } else
+        {
+            /// Into the buffer
+            insert_ordered(compressed_buffer[camera_num], img);
+        }
+                printf("%s\n", "333333");
+        }
     }
-
 }
 
 
-void imageCallback (const sensor_msgs::ImageConstPtr& msg, const int& camera_num)
+void imageCallback (const sensor_msgs::ImageConstPtr msg, const int& camera_num)
 {
     /// TODO:
     /// Start a thread pool with #threads the system owns,
@@ -154,7 +166,14 @@ void imageCallback (const sensor_msgs::ImageConstPtr& msg, const int& camera_num
     /// Input topic "camera_n", where n is a number
     /// Output topic "camera_n_compressed", where n is a number
     std::unique_lock<std::mutex> guard(buf_mtx);
-    image_buffer[camera_num].push_back(msg);
+    sensor_msgs::Image msg1;
+    msg1.header.seq=msg->header.seq;
+    msg1.header.stamp.sec=msg->header.stamp.sec;
+    msg1.header.stamp.nsec=msg->header.stamp.nsec;
+    msg1.width=msg->width;
+    msg1.height=msg->height;
+    msg1.data=msg->data;
+    image_buffer[camera_num].push_back(msg1);
     guard.unlock();
     cv.notify_all();
     check_and_publish();
@@ -168,10 +187,13 @@ int main(int argc, char **argv)
     ros::NodeHandle nh;
     /// Gets the number of image topics
     int num_topics, num_threads;
+    printf("%s\n", "00000");
     nh.getParam(std::string("num_topics"), num_topics);
+    // ROS_INFO("num_topics: %d\n", num_topics);
     ROS_ASSERT(num_topics >= 1);
     num_threads = NUM_THREADS;
     nh.getParam(std::string("num_threads"), num_threads);
+    // ROS_INFO("num_threads: %d\n", num_threads);
     ROS_ASSERT(num_threads >= 1);
     std::vector<std::thread> vec_thread;
     vec_thread.resize(num_threads);
@@ -185,9 +207,11 @@ int main(int argc, char **argv)
     compressed_buffer.resize(num_topics);
     image_buffer.resize(num_topics);
 //    vec_comp_mtx.resize(num_threads);
+    printf("%s\n", "11111");
     std::vector<std::mutex> _vec_mtx(num_threads);
     std::mutex array_comp_mtx[num_threads];
     vec_comp_mtx.swap(_vec_mtx);
+
     for (int i = 0; i < num_topics; ++i)
     {
         /// Converts and connects the number to the string of topic name
@@ -196,17 +220,19 @@ int main(int argc, char **argv)
         ss << i;
         ss >> num;
         std::string image_topic = cam_name + num;
-        std::string image_compressed = image_topic + "_compressed";
-        publisher_vector[i] = nh.advertise<sensor_msgs::Image>(image_compressed, 1000);
+        std::string image_compressed = image_topic + "/compressed";
+        publisher_vector[i] = nh.advertise<sensor_msgs::CompressedImage>(image_compressed, 1);
         publish_seq[i] = 0;
+        image_buffer[i].resize(1);
+        compressed_buffer[i].resize(1);
         subscriber_vector[i] = nh.subscribe<sensor_msgs::Image>(image_topic, 1, boost::bind(&imageCallback, _1, i));
     }
-
+        printf("%s\n", "22222");
     for (int tid = 0; tid < num_threads; tid++)
     {
         vec_thread[tid] = std::thread(compressor_thread_func);
     }
-
+        printf("%s\n", "33333");
 //    nh.getParam
 //    ros::Subscriber sub = nh.subscribe("in_image_topic", 1, imageCallback);
 

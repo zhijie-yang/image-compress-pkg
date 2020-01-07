@@ -1,15 +1,21 @@
 <?xml version="1.0"?>
 <launch>
-  <arg name="num_topics" value="4" />
-  <arg name="num_threads" value="32" />
-  <node pkg="image_compress_pkg" type="image_compress_pkg_node" name="image_compress_pkg">
-    <remap from="/camera_0" to="/camera_front_l/image_raw/compressed" />
-    <remap from="/camera_1" to="/camera_front_r/image_raw/compressed" />
-    <remap from="/camera_2" to="/camera_up_l/image_raw/compressed" />
-    <remap from="/camera_3" to="/camera_up_r/image_raw/compressed" />
+  <param name="num_topics" value="4" />
+  <param name="num_threads" value="8" />
+  <node pkg="image_compress_pkg" type="image_compress_pkg_node" name="image_compress_pkg" launch-prefix="gdb -ex run --args">
+    <remap from="/camera_0" to="/camera/image_down" />
+    <remap from="/camera_1" to="/camera/image_left" />
+    <remap from="/camera_2" to="/camera/image_right" />
+    <remap from="/camera_3" to="/camera/image_up" />
 
   </node>
   <!-- <include file="$(find jackal_viz)/launch/view_robot.launch">
-  	<arg name="config" value="gmapping"/>
+    <arg name="config" value="gmapping"/>
   </include> -->
 </launch>
+
+
+<!-- /camera/image_down
+/camera/image_left
+/camera/image_right
+/camera/image_up -->
