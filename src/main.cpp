@@ -25,7 +25,7 @@ std::condition_variable cv;
 std::vector<ros::Publisher> publisher_vector;
 std::vector<unsigned long> publish_seq;
 std::vector<std::list<sensor_msgs::ImageConstPtr>> image_buffer;
-std::vector<std::list<sensor_msgs::CompressedImagePtr>> compressed_buffer;
+std::vector<std::list<sensor_msgs::CompressedImage>> compressed_buffer;
 std::mutex buf_mtx;
 
 
@@ -35,7 +35,7 @@ void check_and_publish()
     {
         std::unique_lock<std::mutex> guard(vec_comp_mtx[i]);
         if (compressed_buffer[i].size() ==
-                        compressed_buffer[i].end()->get()->header.seq - publish_seq[i])
+                        compressed_buffer[i].end()->header.seq - publish_seq[i])
         {
             while (!compressed_buffer[i].empty())
             {
@@ -73,11 +73,11 @@ int longest_queue ()
 }
 
 /// This function is not thread-safe, lock the comp_mtx before calling it
-void insert_ordered (std::list<sensor_msgs::CompressedImagePtr>& sub_buffer, const sensor_msgs::CompressedImagePtr& img)
+void insert_ordered (std::list<sensor_msgs::CompressedImage>& sub_buffer, const sensor_msgs::CompressedImage& img)
 {
     for (auto i = sub_buffer.begin(); i != sub_buffer.end(); ++i)
     {
-        if (i->get()->header.seq > img->header.seq)
+        if (i->header.seq > img.header.seq)
         {
             sub_buffer.insert(i, img);
             return;
@@ -122,20 +122,20 @@ void compressor_thread_func ()
     ulk.unlock();
     unsigned long jpegSize;
     unsigned char * jpegBuffer = nullptr;
-    sensor_msgs::CompressedImage::Ptr img(new sensor_msgs::CompressedImage);
+    sensor_msgs::CompressedImage img;
     trgb2jpeg(msg->data.data(), msg->width, msg->height, 1, &jpegBuffer, &jpegSize);
-    img->data.assign(jpegBuffer, jpegBuffer+jpegSize);
-    img->format = "jpeg";
-    img->header.seq = msg->header.seq;
-    img->header.frame_id = msg->header.frame_id;
-    img->header.stamp = msg->header.stamp;
+    img.data.assign(jpegBuffer, jpegBuffer+jpegSize);
+    img.format = "jpeg";
+    img.header.seq = msg->header.seq;
+    img.header.frame_id = msg->header.frame_id;
+    img.header.stamp = msg->header.stamp;
 
     std::unique_lock<std::mutex> guard(vec_comp_mtx[camera_num]);
-    if (publish_seq[camera_num] == img->header.seq - 1)
+    if (publish_seq[camera_num] == img.header.seq - 1)
     {
         /// Publish directly
         publisher_vector[camera_num].publish(img);
-        publish_seq[camera_num] = img->header.seq;
+        publish_seq[camera_num] = img.header.seq;
     } else
     {
         /// Into the buffer
