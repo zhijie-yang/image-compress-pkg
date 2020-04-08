@@ -1,9 +1,9 @@
-##Dependencies
+## Dependencies
 
 * ros
 * opencv
 
-##How to use
+## How to use
 
 ```
 catkin_make
