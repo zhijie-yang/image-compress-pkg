@@ -187,7 +187,7 @@ void compressor_thread_func(const int& tid)
 //                        publish_fn(compressed);
             }
             else
-                ROS_ERROR("Compressed Image Transport - JPEG compression requires 8/16-bit color format (input format is: %s)", message.encoding.c_str());
+                ROS_ERROR("Compressed Image Transport - JPEG compression requires 8/16-bit color format (input format is: %s)", msg->encoding.c_str());
 
             std::unique_lock<std::mutex> guard(vec_comp_mtx[camera_num]);
 
