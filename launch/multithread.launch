@@ -1,21 +1,9 @@
 <?xml version="1.0"?>
 <launch>
-  <param name="num_topics" value="3" />
+  <param name="num_topics" value="1" />
   <param name="num_threads" value="8" />
   <node pkg="image_compress_pkg" type="image_compress_pkg_node" name="image_compress_pkg">
-<!--         <remap from="/camera_0" to="/camera_0/image_raw" /> -->
-    <remap from="/camera_0/image_raw" to="/camera_17082046/pg_17082046/image_raw" />
-<!--     <remap from="/camera_0/image_raw" to="/camera_18166935/pg_18166935/image_raw" /> -->
-    <remap from="/camera_1/image_raw" to="/camera_18166935/pg_18166935/image_raw" />
-    <remap from="/camera_2/image_raw" to="/camera_17023549/pg_17023549/image_raw" />
+    <remap from="/camera_0/image_raw" to="/camera_name/image_raw" />
+    <remap from="/camera_0/thread/compressed" to="/camera_name/image_raw" />
   </node>
-  <!-- <include file="$(find jackal_viz)/launch/view_robot.launch">
-    <arg name="config" value="gmapping"/>
-  </include> -->
 </launch>
-
-
-<!-- /camera/image_down
-/camera/image_left
-/camera/image_right
-/camera/image_up -->

@@ -27,8 +27,7 @@ catkin_package(
 include_directories(
         include
         ${catkin_INCLUDE_DIRS} ${OpenCV_INCLUDE_DIRS}
-        /usr/include/turbojpeg.h
 )
 
 add_executable(${PROJECT_NAME}_node src/main.cpp)
-target_link_libraries(${PROJECT_NAME}_node ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} /usr/lib/x86_64-linux-gnu/libturbojpeg.so)
+target_link_libraries(${PROJECT_NAME}_node ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})

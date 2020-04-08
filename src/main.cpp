@@ -6,8 +6,6 @@
 #include <sensor_msgs/Image.h>
 #include <sensor_msgs/CompressedImage.h>
 
-#include <turbojpeg.h>
-
 #include <cstdint>
 #include <thread>
 #include <mutex>
@@ -99,31 +97,8 @@ void insert_ordered(std::list<sensor_msgs::CompressedImage> &sub_buffer, const s
     sub_buffer.push_back(img);
     }
 
-int trgb2jpeg(const unsigned char *rgb_buffer, int width, int height, int quality, unsigned char **jpeg_buffer,
-              unsigned long *jpeg_size)
-    {
-    // printf("%s\n", "111");
-    tjhandle handle = nullptr;
-    //unsigned long size=0;
-    int flags = 0;
-    int subsamp = TJSAMP_422;
-    int pixelfmt = TJPF_BGR;
-    // printf("%s\n", "222");
-    handle = tjInitCompress();
-    //size=tjBufSize(width, height, subsamp);
-    tjCompress2(handle, rgb_buffer, width, 0, height, pixelfmt, jpeg_buffer, jpeg_size, subsamp,
-                quality, flags);
-
-    tjDestroy(handle);
-    // printf("%s\n", "333");
-    return 0;
-    }
-
-
 void compressor_thread_func(const int& tid)
     {
-//    std::cout << "Thread no. " << std::thread::id() << "is working" << std::endl;
-//    printf ("Thread no. %d is working\n", tid);
     namespace enc = sensor_msgs::image_encodings;
     using namespace cv;
 
@@ -138,17 +113,7 @@ void compressor_thread_func(const int& tid)
             sensor_msgs::ImageConstPtr msg = image_buffer[camera_num].front();
             image_buffer[camera_num].pop_front();
             ulk.unlock();
-//            printf ("Thread no. %d is working\n", tid);
-//            unsigned long jpegSize;
-//            unsigned char *jpegBuffer = nullptr;
-            //        sensor_msgs::CompressedImage img;
-            // printf("%s\n", "1111");
-            // printf("width: %d\n", msg.width);
-            // printf("%s\n", "1111-1");
 
-
-// =================================================================================================
-//            std::cerr << "Compressing camera " << camera_num << std::endl;
             sensor_msgs::CompressedImage compressed;
             compressed.header = msg->header;
             compressed.format = msg->encoding;
@@ -160,10 +125,8 @@ void compressor_thread_func(const int& tid)
             compressionFormat encodingFormat = JPEG;
 
             // Bit depth of image encoding
-            // printf("Checking message encoding\n");
-//            ROS_INFO("Encoding: %s\n", msg.encoding.c_str());
             int bitDepth = enc::bitDepth(msg->encoding);
-//            int numChannels = enc::numChannels(msg.encoding);
+//            int numChannels = enc::numChannels(msg->encoding);
 
             params.resize(9, 0);
             params[0] = IMWRITE_JPEG_QUALITY;
@@ -223,35 +186,12 @@ void compressor_thread_func(const int& tid)
                 // Publish message
 //                        publish_fn(compressed);
             }
-//                    else
-//                        ROS_ERROR("Compressed Image Transport - JPEG compression requires 8/16-bit color format (input format is: %s)", message.encoding.c_str());
+            else
+                ROS_ERROR("Compressed Image Transport - JPEG compression requires 8/16-bit color format (input format is: %s)", message.encoding.c_str());
 
-
-//        trgb2jpeg(msg.data.data(), msg.width, msg.height, 100, &jpegBuffer, &jpegSize);
-//            cv::imencode(".jpg", cv_ptr->image, compressed.data, params);
-
-            // printf("%s\n", "2222");
-//            // printf("jpegsize: %lu\n", jpegSize);
-//            // printf("jpegbuffer: %s\n", jpegBuffer);
-//        img.data.assign(jpegBuffer, jpegBuffer+jpegSize);
-//        img.format = "jpeg";
-//        img.header.seq = msg.header.seq;
-//        img.header.frame_id = msg.header.frame_id;
-//        img.header.stamp = msg.header.stamp;
             std::unique_lock<std::mutex> guard(vec_comp_mtx[camera_num]);
-//            if (publish_seq[camera_num] == compressed.header.seq - 1)
-//            {
-//                /// Publish directly
-//                publisher_vector[camera_num].publish(compressed);
-//                publish_seq[camera_num] = compressed.header.seq;
-//            }
-//            else
-//            {
-//                /// Into the buffer
-//                insert_ordered(compressed_buffer[camera_num], compressed);
-//            }
+
             publisher_vector[camera_num].publish(compressed);
-            // printf("%s\n", "333333");
         }
         else
         {
@@ -276,17 +216,6 @@ void imageCallback(const sensor_msgs::ImageConstPtr msg, const int &camera_num)
     /// Output topic "camera_n_compressed", where n is a number
 
     std::unique_lock<std::mutex> guard(buf_mtx);
-//    sensor_msgs::Image msg1;
-//    msg1.header.seq = msg->header.seq;
-//    msg1.header.stamp.sec = msg->header.stamp.sec;
-//    msg1.header.stamp.nsec = msg->header.stamp.nsec;
-//    msg1.encoding = msg->encoding;
-//    msg1.width = msg->width;
-//    msg1.height = msg->height;
-//    msg1.data = msg->data;
-//    msg1.step = msg->step;
-//    image_buffer[camera_num].push_back(msg1);
-//    std::cerr << "Camera Num: " << camera_num << std::endl;
     image_buffer[camera_num].push_back(msg);
     guard.unlock();
     cond_var.notify_all();
@@ -300,7 +229,6 @@ int main(int argc, char **argv)
     ros::NodeHandle nh;
     /// Gets the number of image topics
     int num_topics, num_threads;
-    // printf("%s\n", "00000");
     num_topics = NUM_TOPICS;
     nh.getParam(std::string("num_topics"), num_topics);
     ROS_ERROR("Initializing with %d cameras\n", num_topics);
@@ -320,8 +248,6 @@ int main(int argc, char **argv)
     publish_seq.resize(num_topics);
     compressed_buffer.resize(num_topics);
     image_buffer.resize(num_topics);
-//    vec_comp_mtx.resize(num_threads);
-    // printf("%s\n", "11111");
     std::vector<std::mutex> _vec_mtx(num_threads);
     std::mutex array_comp_mtx[num_threads];
     vec_comp_mtx.swap(_vec_mtx);
@@ -337,19 +263,13 @@ int main(int argc, char **argv)
         std::string image_compressed = image_topic + "/thread/compressed";
         publisher_vector[i] = nh.advertise<sensor_msgs::CompressedImage>(image_compressed, 1);
         publish_seq[i] = 0;
-//        image_buffer[i].resize(1);
-//        compressed_buffer[i].resize(1);
         std::cerr << "Topics: " << image_topic << std::endl;
         subscriber_vector[i] = nh.subscribe<sensor_msgs::Image>(image_topic, 100, boost::bind(&imageCallback, _1, i));
     }
-    // printf("%s\n", "22222");
     for (int tid = 0; tid < num_threads; tid++)
     {
         vec_thread[tid] = std::thread(compressor_thread_func, tid);
     }
-    // printf("%s\n", "33333");
-//    nh.getParam
-//    ros::Subscriber sub = nh.subscribe("in_image_topic", 1, imageCallback);
 
     ros::spin();
     }
